@@ -1,145 +1,165 @@
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
-    local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
-    local out = vim.fn.system({
-        'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo,
-        lazypath
-    })
-    if vim.v.shell_error ~= 0 then
-        vim.api.nvim_echo({
-            {'Failed to clone lazy.nvim:\n', 'ErrorMsg'}, {out, 'WarningMsg'},
-            {'\nPress any key to exit...'}
-        }, true, {})
-        vim.fn.getchar()
-        os.exit(1)
-    end
+        local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
+        local out = vim.fn.system({
+                'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo,
+                lazypath
+        })
+        if vim.v.shell_error ~= 0 then
+                vim.api.nvim_echo({
+                        {'Failed to clone lazy.nvim:\n', 'ErrorMsg'},
+                        {out, 'WarningMsg'},
+                        {'\nPress any key to exit...'}
+                }, true, {})
+                vim.fn.getchar()
+                os.exit(1)
+        end
 end
 vim.opt.rtp:prepend(lazypath)
 
 -- Setup lazy.nvim
 require('lazy').setup({
-    spec = {
-        {
-            'nvim-treesitter/nvim-treesitter',
-            build = ':TSUpdate',
-            config = function()
-                local configs = require('nvim-treesitter.configs')
+        spec = {
+                {
+                        'nvim-treesitter/nvim-treesitter',
+                        build = ':TSUpdate',
+                        opts = {
+                                ensure_installed = {
+                                        'c', 'cpp', 'lua', 'vim', 'vimdoc', 'python'
+                                },
+                                sync_install = true,
+                                highlight = { enable = true },
+                                indent = { enable = true },
+                        },
+                },
 
-                configs.setup({
-                    ensure_installed = {
-                        'c', 'cpp', 'lua', 'vim', 'vimdoc', 'python'
-                    },
-                    sync_install = true,
-                    highlight = {enable = true},
-                    indent = {enable = true}
-                })
-            end
-        },
-        {'catppuccin/nvim', name = 'catppuccin', priority = 1000},
-        {
-            'nvim-lualine/lualine.nvim',
-            dependencies = {'nvim-tree/nvim-web-devicons'},
-            options = {icons_enabled = true, theme = 'dracula'}
-        },
-        {'junegunn/fzf'},
-        {'junegunn/fzf.vim'},
-        {'windwp/nvim-autopairs', event = 'InsertEnter', config = true},
-        {'github/copilot.vim'},
-        {'neovim/nvim-lspconfig'},
-        {'hrsh7th/nvim-cmp'},
-        {'hrsh7th/cmp-nvim-lsp'},
-        {'nvim-telescope/telescope.nvim'},
-        -- Configure any other settings here. See the documentation for more details.
-        -- colorscheme that will be used when installing plugins.
-        -- install = {colorscheme = {'habamax'}},
-        checker = {enabled = true}
-    }
+                { 'catppuccin/nvim', name = 'catppuccin', priority = 1000 },
+
+                {
+                        'nvim-lualine/lualine.nvim',
+                        dependencies = { 'nvim-tree/nvim-web-devicons' },
+                },
+
+                { 'junegunn/fzf' },
+                { 'junegunn/fzf.vim' },
+
+                { 'windwp/nvim-autopairs', event = 'InsertEnter', config = true },
+
+                -- LSP + completion
+                { 'neovim/nvim-lspconfig' },
+                { 'hrsh7th/nvim-cmp' },
+                { 'hrsh7th/cmp-nvim-lsp' },
+
+                { 'nvim-telescope/telescope.nvim' },
+
+                checker = { enabled = true },
+        }
 })
+
+------------------------------------------------------------
+-- LSP (Neovim 0.11+)
+------------------------------------------------------------
 
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
-local lspconfig = require('lspconfig')
 
-local servers = {
-    'clangd', 'pyright'
-}
-
-for _, server in ipairs(servers) do
-    lspconfig[server].setup {
-        capabilities = capabilities
-    }
-end
-
-local cmp = require('cmp')
-cmp.setup({
-    snippet = {
-        expand = function(args)
-            vim.fn['vsnip#anonymous'](args.body)
-        end
-    },
-    completion = {
-        completeopt = 'menu,menuone,noinsert'
-    },
-    mapping = {
-        ['<C-d>'] = cmp.mapping.scroll_docs(-4),
-        ['<C-f>'] = cmp.mapping.scroll_docs(4),
-        ['<C-Space>'] = cmp.mapping.complete(),
-        ['<Up>'] = cmp.mapping.select_prev_item(),
-        ['<Down>'] = cmp.mapping.select_next_item(),
-        ['<Esc>'] = cmp.mapping.close(),
-        ['<CR>'] = cmp.mapping.confirm({
-            behavior = cmp.ConfirmBehavior.Insert,
-            select = true
-        })
-    },
-    sources = {
-        {name = 'nvim_lsp'}, {name = 'vsnip'}, {name = 'buffer'}
-    }
+vim.lsp.config('clangd', {
+        cmd = { "clangd-20" },
+        capabilities = capabilities,
 })
 
-require('nvim-autopairs').setup()
+vim.lsp.config('pyright', {
+        capabilities = capabilities,
+})
+
+vim.lsp.enable("clangd")
+
+------------------------------------------------------------
+-- nvim-cmp
+------------------------------------------------------------
+
+local cmp = require('cmp')
+
+cmp.setup({
+        snippet = {
+                expand = function(args)
+                        vim.fn['vsnip#anonymous'](args.body)
+                end,
+        },
+
+        completion = {
+                completeopt = 'menu,menuone,noinsert',
+        },
+
+        mapping = {
+                ['<C-d>'] = cmp.mapping.scroll_docs(-4),
+                ['<C-f>'] = cmp.mapping.scroll_docs(4),
+                ['<C-Space>'] = cmp.mapping.complete(),
+                ['<Up>'] = cmp.mapping.select_prev_item(),
+                ['<Down>'] = cmp.mapping.select_next_item(),
+                ['<Esc>'] = cmp.mapping.close(),
+                ['<CR>'] = cmp.mapping.confirm({
+                        behavior = cmp.ConfirmBehavior.Insert,
+                        select = true,
+                }),
+        },
+
+        sources = {
+                { name = 'nvim_lsp' },
+                { name = 'vsnip' },
+                { name = 'buffer' },
+        },
+})
+
+------------------------------------------------------------
+-- UI / options
+------------------------------------------------------------
 
 require('lualine').setup()
-require'lspconfig'.clangd.setup{}
 
 vim.opt.number = true
 vim.opt.relativenumber = true
-vim.opt.shiftwidth = 4
-vim.opt.expandtab = true
 vim.opt.cursorline = true
 vim.opt.wrap = true
-vim.opt.tabstop = 4
-vim.opt.softtabstop = 4
-vim.opt.shiftwidth = 4
-vim.opt.expandtab = true
+vim.opt.tabstop = 8
+vim.opt.shiftwidth = 8
+vim.opt.softtabstop = 8
+vim.opt.expandtab = false
 vim.opt.autoindent = true
 vim.opt.smartindent = true
 vim.opt.guicursor = 'n-v-c-i:block'
-vim.cmd.colorscheme 'catppuccin'
+
+vim.cmd.colorscheme('catppuccin')
+
+------------------------------------------------------------
+-- Keymaps
+------------------------------------------------------------
 
 vim.g.mapleader = ' '
 vim.g.maplocalleader = '\\'
 
-vim.api.nvim_set_keymap('n', '<leader>fr', ':History<CR>', {noremap = true})
+vim.api.nvim_set_keymap('n', '<leader>fr', ':History<CR>', { noremap = true })
 
 local builtin = require('telescope.builtin')
 
-vim.keymap.set('n', '<leader>ff', builtin.find_files, {noremap = true})
-vim.keymap.set('n', '<leader>fg', builtin.live_grep, {noremap = true})
-vim.keymap.set('n', '<leader>fb', builtin.buffers, {noremap = true})
-vim.keymap.set('n', '<leader>fh', builtin.help_tags, {noremap = true})
+vim.keymap.set('n', '<leader>ff', builtin.find_files)
+vim.keymap.set('n', '<leader>fg', builtin.live_grep)
+vim.keymap.set('n', '<leader>fb', builtin.buffers)
+vim.keymap.set('n', '<leader>fh', builtin.help_tags)
+
+------------------------------------------------------------
+-- LSP keymaps (buffer-local)
+------------------------------------------------------------
 
 vim.api.nvim_create_autocmd('LspAttach', {
-    desc = 'LSP Actions',
-    callback = function()
-        local bufmap = function(mode, lhs, rhs)
-            local opts = {buffer=true}
-            vim.keymap.set(mode, lhs, rhs, opts)
-        end
+        desc = 'LSP Actions',
+        callback = function(ev)
+                local opts = { buffer = ev.buf }
 
-        bufmap('n', 'K', '<cmd> lua vim.lsp.buf.hover()<cr>')
-        bufmap('n', 'gd', '<cmd> lua vim.lsp.buf.definition()<cr>')
-        bufmap('n', 'gD', '<cmd> lua vim.lsp.buf.declaration()<cr>')
-        bufmap('n', '<F2>', '<cmd> lua vim.lsp.buf.rename()<cr>')
-    end
+                vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
+                vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+                vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
+                vim.keymap.set('n', '<F2>', vim.lsp.buf.rename, opts)
+                vim.keymap.set("n", "gC", vim.lsp.buf.incoming_calls, opts)
+        end,
 })
